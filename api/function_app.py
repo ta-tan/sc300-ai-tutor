@@ -37,21 +37,30 @@ def ask(req: func.HttpRequest) -> func.HttpResponse:
         rows = cursor.fetchall()
         context = "\n".join([row[0] for row in rows]) if rows else "該当知識なし"
 
-        # 4. 回答生成（変数の存在確認付き）
+        # 4. 回答生成（極限までシンプルに）
         try:
-            # プロンプト内の変数を安全に展開
-            formatted_system_prompt = f"あなたはSC-300講師です。以下の知識を基にMermaidで図解して。\n\n【知識】:\n{context}"
+            # 知識を文字列として結合
+            knowledge_text = str(context)
             
-            client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
+            # プロンプトを作成（f-stringを使わず結合してエラー回避）
+            system_msg = "あなたはSC-300講師です。以下の【知識】を基に、手順は必ずMermaidのgraph TDで図解してください。\n\n【知識】:\n" + knowledge_text
+            
+            client = AzureOpenAI(
+                azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                api_key=os.getenv("AZURE_OPENAI_KEY"),
+                api_version="2024-02-01"
+            )
+            
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": formatted_system_prompt},
+                    {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_query}
                 ]
             )
-            answer_content = response.choices[0].message.content
-            return func.HttpResponse(json.dumps({"answer": answer_content}), mimetype="application/json")
             
-        except Exception as inner_e:
-            return func.HttpResponse(json.dumps({"answer": f"API内部エラー: {str(inner_e)}"}), mimetype="application/json")
+            return func.HttpResponse(json.dumps({"answer": response.choices[0].message.content}), mimetype="application/json")
+            
+        except Exception as e:
+            # 何が起きたか100%可視化する
+            return func.HttpResponse(json.dumps({"answer": f"最終デバッグエラー: {type(e).__name__} - {str(e)}"}), mimetype="application/json")
