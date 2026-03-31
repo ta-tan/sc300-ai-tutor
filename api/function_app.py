@@ -8,75 +8,41 @@ app = func.FunctionApp()
 
 @app.route(route="ask", auth_level=func.AuthLevel.ANONYMOUS)
 def ask(req: func.HttpRequest) -> func.HttpResponse:
+    status_log = []
     try:
-        # 1. 環境設定の読み込み
-        req_body = req.get_json()
-        user_query = req_body.get('question', '')
-        
+        # STEP 1: 環境変数の読み込みチェック
+        status_log.append("1. 環境変数読み込み開始...")
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         api_key = os.getenv("AZURE_OPENAI_KEY")
         sql_conn_str = os.getenv("SQL_CONN_STR")
+        
+        if not all([endpoint, api_key, sql_conn_str]):
+            return func.HttpResponse(json.dumps({"answer": "【エラー】環境変数が空です。Azureの「構成」を確認してください。"}), mimetype="application/json")
+        status_log.append("OK")
 
-        client = AzureOpenAI(
-            azure_endpoint=endpoint,
-            api_key=api_key,
-            api_version="2024-02-01"
-        )
+        # STEP 2: OpenAI 接続テスト
+        status_log.append("2. OpenAI接続開始...")
+        client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
+        # 疎通確認のためだけに軽く投げる
+        client.models.list()
+        status_log.append("OK")
 
-        # 2. 質問をベクトル化（Embedding）
-        # ここでユーザーの質問を数字の羅列に変え、DB検索の準備をします
-        embed_res = client.embeddings.create(input=[user_query], model="text-embedding-3-small")
-        query_vector = embed_res.data[0].embedding
-
-        # 3. Azure SQL Database への接続（ドライバー 18/17 自動切換）
+        # STEP 3: DB 接続テスト（ここが本丸）
+        status_log.append("3. DB接続開始...")
         try:
             conn = pyodbc.connect(sql_conn_str)
-        except:
-            # 18でエラーが出た場合は17に書き換えてリトライ
-            conn = pyodbc.connect(sql_conn_str.replace("18", "17"))
-        
-        cursor = conn.cursor()
+            status_log.append("OK (Driver 17/18 成功)")
+        except Exception as db_e:
+            return func.HttpResponse(json.dumps({"answer": f"【DB接続失敗】\nログ: {' -> '.join(status_log)}\nエラー内容: {str(db_e)}"}), mimetype="application/json")
 
-        # 4. ベクトル検索（RAG）の実行
-        # 教本データから、質問に最も近い情報を上位3件取得します
-        search_query = f"""
-        SELECT TOP 3 content 
-        FROM sc300_knowledge 
-        ORDER BY VECTOR_DISTANCE('cosine', CAST(? AS VECTOR(1536)), embedding)
-        """
-        cursor.execute(search_query, (json.dumps(query_vector),))
-        rows = cursor.fetchall()
-        context = "\n".join([row[0] for row in rows])
-
-        # 5. AIによる最終回答の生成
-        # DBから取得した「知識（context）」を元に回答させます
-        system_prompt = f"""
-        あなたはSC-300試験の専門講師です。
-        以下の【参考知識】のみに基づいて回答してください。
-        回答には必ずMermaid記法（graph TDなど）を使った図解を含めてください。
-        
-        【参考知識】:
-        {context}
-        """
-
-        response = client.chat.completions.create(
-            model="gpt-4o", # 先ほど作成したデプロイ名に合わせてください
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_query}
-            ]
-        )
-
-        answer = response.choices[0].message.content
-
+        # すべて突破した場合
         return func.HttpResponse(
-            json.dumps({"answer": answer}),
+            json.dumps({"answer": "【全開通！】通信はすべて成功しています。次はSQLのテーブル定義を確認しましょう。"}),
             mimetype="application/json"
         )
 
     except Exception as e:
         return func.HttpResponse(
-            json.dumps({"answer": f"エラーが発生しました: {str(e)}"}),
-            mimetype="application/json",
-            status_code=500
+            json.dumps({"answer": f"【想定外のエラー】\nログ: {' -> '.join(status_log)}\nエラー: {str(e)}"}),
+            mimetype="application/json"
         )
