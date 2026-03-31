@@ -51,3 +51,7 @@ def ask(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         return func.HttpResponse(json.dumps({"answer": f"本気デバッグエラー: {str(e)}"}), mimetype="application/json")
+        
+# 質問文からキーワードだけ抜く（簡易版）
+keyword = "条件付きアクセス" 
+cursor.execute("SELECT TOP 3 content FROM sc300_knowledge WHERE content LIKE ?", (f"%{keyword}%",))
