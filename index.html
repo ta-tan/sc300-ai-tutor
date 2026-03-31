@@ -25,11 +25,27 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // 20ステップのメニューデータ
         const roadmap = [
-            { id: 1, title: "Part 01: Entra ID の階層構造", content: "テナント > サブスクリプション > リソースグループの順で管理されます。管理単位(AU)を使うと、特定の部署だけに限定した管理者権限を付与できます。", diagram: "テナント (最上位)\n └── サブスクリプション\n     └── 管理単位 (AU) ➔ 特定ユーザーのみ管理", q: "『管理単位 (AU)』の主な目的は？", options: ["課金を分ける", "特定の範囲に管理者権限を制限する", "外部ユーザーを招待する"], ans: "特定の範囲に管理者権限を制限する", ext: "AUは、IT部門が全ユーザーではなく『営業部だけ』を管理するといった、権限の委譲に使います。" },
-            { id: 2, title: "Part 02: ユーザーとグループの管理", content: "動的グループは、属性（例：department=Sales）に基づいて自動でメンバーを更新します。", diagram: "属性: department == 'Sales'\n ➔ 自動的にグループへ追加\n ➔ 属性が変われば自動で削除", q: "動的グループのメンバーシップが決まる基準は？", options: ["管理者の承認", "ユーザーの申請", "ユーザーの属性ルール"], ans: "ユーザーの属性ルール", ext: "属性に基づいたルールを作成することで、管理の手間を大幅に削減できます。" },
-            // 以降 Part 20まで同様に定義可能
+            { id: 1, title: "Part 01: Entra ID の階層構造", content: "テナント > サブスクリプション > リソースの順で管理。管理単位(AU)は権限の委譲に必須。", diagram: "テナント\n └── サブスクリプション\n     └── 管理単位(AU)", q: "『管理単位 (AU)』の主な目的は？", options: ["課金分離", "特定の範囲に権限を制限する", "外部招待"], ans: "特定の範囲に権限を制限する", ext: "IT部門が特定部署だけを管理する等に使います。" },
+            { id: 2, title: "Part 02: ユーザーとグループの管理", content: "動的グループは属性(department等)で自動更新。", diagram: "属性ルール ➔ 自動追加 ➔ 手間削減", q: "動的グループの基準は？", options: ["管理者承認", "ユーザー申請", "ユーザー属性ルール"], ans: "ユーザー属性ルール", ext: "ルールにより運用を自動化できます。" },
+            { id: 3, title: "Part 03: Entra Connect Sync", content: "オンプレADとEntra IDを同期。パスワードハッシュ同期が一般的。", diagram: "オンプレAD ➔ Connect ➔ Entra ID", q: "最も管理負荷が低い同期方法は？", options: ["パススルー認証", "パスワードハッシュ同期", "フェデレーション"], ans: "パスワードハッシュ同期", ext: "インフラがシンプルでクラウド側で完結するため負荷が低いです。" },
+            { id: 4, title: "Part 04: Entra Cloud Sync", content: "軽量エージェントで同期。複数フォレストや切断された環境に強い。", diagram: "クラウド側で処理 ➔ 軽量化", q: "Cloud Syncの利点は？", options: ["全機能対応", "エージェントが軽量", "オンプレ側に全処理"], ans: "エージェントが軽量", ext: "設置が簡単で管理オーバーヘッドが少ないです。" },
+            { id: 5, title: "Part 05: 外部ID (B2B) の構成", content: "外部ユーザーをゲストとして招待。ドメイン制限等で制御。", diagram: "招待 ➔ 承諾 ➔ ゲストアクセス", q: "特定のドメインのみ招待を許可する設定は？", options: ["ドメイン許可リスト", "MFA強制", "SSPR"], ans: "ドメイン許可リスト", ext: "コラボレーション設定で特定の取引先のみに絞れます。" },
+            { id: 6, title: "Part 06: SSPR とパスワード保護", content: "自分でパスワードリセット。禁止パスワード設定で強度向上。", diagram: "SSPR有効 ➔ 認証 ➔ リセット完了", q: "SSPRに必須の条件は？", options: ["管理者の許可", "2つ以上の認証方法の登録", "有料ライセンス不要"], ans: "2つ以上の認証方法の登録", ext: "本人確認を確実にするため、複数の連絡先が必要です。" },
+            { id: 7, title: "Part 07: 多要素認証 (MFA) の展開", content: "条件付きアクセス等で強制。登録キャンペーンでユーザーに促す。", diagram: "パスワード + 追加認証(アプリ等)", q: "MFAの主なメリットは？", options: ["ログインが早くなる", "不正アクセスのリスク激減", "パスワード不要"], ans: "不正アクセスのリスク激減", ext: "認証要素を増やすことで安全性が飛躍的に高まります。" },
+            { id: 8, title: "Part 08: パスワードレス認証", content: "FIDO2やAuthenticatorアプリ、Windows Helloを使う次世代認証。", diagram: "生体認証 or セキュリティキー ➔ ログイン", q: "最もセキュアなパスワードレスは？", options: ["SMS", "FIDO2 セキュリティキー", "電話発信"], ans: "FIDO2 セキュリティキー", ext: "フィッシングに耐性がある最強の認証方法の一つです。" },
+            { id: 9, title: "Part 09: 条件付きアクセス ①（基本）", content: "誰が・どこから・どのデバイスで。ポリシーの信号が重要。", diagram: "信号(IP/ユーザー) ➔ 判定 ➔ アクセス制御", q: "ポリシーの『信号』に含まれないのは？", options: ["ユーザーの場所", "デバイスの状態", "個人の趣味"], ans: "個人の趣味", ext: "場所、デバイス、アプリ等の属性を信号として使います。" },
+            { id: 10, title: "Part 10: 条件付きアクセス ②（応用）", content: "ブロック・許可の決定。レポート専用モードで影響確認。", diagram: "ブロック優先 ➔ 重なったら拒否", q: "許可とブロックが競合した場合どうなる？", options: ["許可される", "ブロックされる", "MFA要求"], ans: "ブロックされる", ext: "セキュリティのため、拒否が常に優先されます。" },
+            { id: 11, title: "Part 11: ID Protection", content: "サインインリスク等を自動判定。高リスク時にMFAやブロック。", diagram: "リスク検知 ➔ 自動ポリシー適用", q: "リスクを検知する仕組みは？", options: ["手動ログ確認", "機械学習(AI)", "電話確認"], ans: "機械学習(AI)", ext: "MSの膨大なデータを元にAIが自動で判定します。" },
+            { id: 12, title: "Part 12: アプリの登録 (App Registration)", content: "独自アプリをEntra IDに登録。APIアクセス許可を設定。", diagram: "アプリID ➔ 認証 ➔ トークン取得", q: "アプリからGraph APIを叩くのに必要なのは？", options: ["管理者パスワード", "APIアクセス許可(Scopes)", "特権ロール"], ans: "APIアクセス許可(Scopes)", ext: "必要なリソースへのアクセスを個別に許可します。" },
+            { id: 13, title: "Part 13: エンタープライズアプリと SSO", content: "SaaSアプリ等へのSSOを提供。SAMLやOIDCを利用。", diagram: "1回のログイン ➔ 全アプリ利用可能", q: "SSOの主な規格は？", options: ["HTTP", "SAML 2.0", "KQL"], ans: "SAML 2.0", ext: "多くのモダンなSaaSはSAMLやOIDCに対応しています。" },
+            { id: 14, title: "Part 14: アプリケーションプロキシ", content: "社内アプリを外部へ安全に公開。VPN不要。", diagram: "外部 ➔ Proxy ➔ 社内リソース", q: "App Proxyの利点は？", options: ["VPNが必須", "受信ポートの開放不要", "回線が早くなる"], ans: "受信ポートの開放不要", ext: "コネクタが送信方向のみ通信するためセキュアです。" },
+            { id: 15, title: "Part 15: ワークロードID", content: "非人間(アプリ/サービス)用のID。マネージドIDが推奨。", diagram: "マネージドID ➔ 資格情報管理不要", q: "コード内に秘密情報を書かなくて済むのは？", options: ["SSO", "マネージドID", "PIM"], ans: "マネージドID", ext: "Azureが鍵を管理するため非常に安全です。" },
+            { id: 16, title: "Part 16: PIM ①（昇格）", content: "特権を常に持たせない。必要な時だけアクティブ化。", diagram: "対象となる ➔ アクティブ化申請 ➔ 承認", q: "PIMの『Eligible』とは？", options: ["常に有効", "アクティブ化が可能", "権限なし"], ans: "アクティブ化が可能", ext: "必要な時だけ権限を得るJITアクセスの基本です。" },
+            { id: 17, title: "Part 17: PIM ②（最適化）", content: "承認者設定や通知。PIM自体のアラートを監視。", diagram: "設定 ➔ アラート ➔ 不正昇格防止", q: "PIMでMFAを必須にできる？", options: ["できない", "できる", "電話のみ可能"], ans: "できる", ext: "アクティブ化の条件としてMFAを課すのが定石です。" },
+            { id: 18, title: "Part 18: エンタイトルメント管理", content: "アクセスパッケージでリソースをセット化。自動承認も可。", diagram: "リソース一式 ➔ パッケージ化 ➔ 申請", q: "入社時に一括で権限を渡すのに適しているのは？", options: ["SSPR", "アクセスパッケージ", "監査ログ"], ans: "アクセスパッケージ", ext: "グループ、アプリ、サイト等の権限を一つにまとめられます。" },
+            { id: 19, title: "Part 19: アクセスレビュー", content: "定期的な権限チェック。不要な権限を自動削除。", diagram: "チェック ➔ 承認/拒否 ➔ 権限修正", q: "レビューで応答がないユーザーをどうする？", options: ["そのまま", "削除(構成による)", "管理者へ転送"], ans: "削除(構成による)", ext: "『アクセスの削除』を自動適用設定にできます。" },
+            { id: 20, title: "Part 20: 監査・トラブルシューティング", content: "サインインログ確認。KQL(Kusto)で高度な分析。", diagram: "ログ蓄積 ➔ KQLクエリ ➔ 異常発見", q: "ログ分析に使う言語は？", options: ["Python", "KQL", "SQL"], ans: "KQL", ext: "Azure MonitorやSentinelでも使われる標準言語です。" }
         ];
 
         function App() {
@@ -55,19 +71,14 @@
             return (
                 <div className="container">
                     <button onClick={() => {setView('menu'); setShowExt(false); setUserAns(null);}} style={{marginBottom: '10px', cursor: 'pointer'}}>← 戻る</button>
-                    
                     <div className="card textbook">
-                        <h2>📖 参考書パート</h2>
+                        <h2>📖 要点解説</h2>
                         <p>{selectedPart.content}</p>
-                        <div className="diagram">
-                            <strong>【構成イメージ】</strong><br/>
-                            {selectedPart.diagram}
-                        </div>
-                        <p style={{fontSize: '0.8rem', color: '#666', textAlign: 'center'}}>↓ スクロールして問題に挑戦 ↓</p>
+                        <div className="diagram"><strong>【図解イメージ】</strong><br/>{selectedPart.diagram}</div>
+                        <p style={{fontSize: '0.8rem', color: '#666', textAlign: 'center'}}>↓ 下にスクロールしてボス（問題）を倒せ！ ↓</p>
                     </div>
-
                     <div className="card">
-                        <h2>📝 確認テスト</h2>
+                        <h2>📝 演習問題</h2>
                         <h3>{selectedPart.q}</h3>
                         {selectedPart.options.map(opt => (
                             <button key={opt} className="btn" 
@@ -78,7 +89,7 @@
                         ))}
                         {showExt && (
                             <div className="explanation">
-                                <strong>{userAns === selectedPart.ans ? '✅ 正解！' : '❌ 不正解...'}</strong>
+                                <strong>{userAns === selectedPart.ans ? '✅ 撃破！' : '❌ 返り討ち...'}</strong>
                                 <p>{selectedPart.ext}</p>
                                 <button className="btn next-btn" onClick={() => setView('menu')}>メニューに戻る</button>
                             </div>
@@ -87,7 +98,6 @@
                 </div>
             );
         }
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
