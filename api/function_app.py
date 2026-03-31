@@ -37,26 +37,21 @@ def ask(req: func.HttpRequest) -> func.HttpResponse:
         rows = cursor.fetchall()
         context = "\n".join([row[0] for row in rows]) if rows else "該当知識なし"
 
-        # 4. 回答生成（図解強制・DB知識優先モード）
-        system_prompt = f"""
-あなたはSC-300（Microsoft Identity and Access Administrator）の専門講師です。
-提供された【教本知識】を唯一の根拠として回答してください。
-
-### 回答ルール:
-1. プロセス、手順、構成に関する質問には、必ず Mermaid形式の `graph TD` を用いて図解してください。
-2. 図解の後に、教本の重要ポイントを簡潔に箇条書きで補足してください。
-3. 【教本知識】に該当データがない場合は、自分の知識で補完せず「DBに該当データなし」と報告してください。
-
-【教本知識】:
-{context}
-"""
-        client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_query}
-            ]
-        )
-
-        return func.HttpResponse(json.dumps({"answer": response.choices[0].message.content}), mimetype="application/json")
+        # 4. 回答生成（変数の存在確認付き）
+        try:
+            # プロンプト内の変数を安全に展開
+            formatted_system_prompt = f"あなたはSC-300講師です。以下の知識を基にMermaidで図解して。\n\n【知識】:\n{context}"
+            
+            client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": formatted_system_prompt},
+                    {"role": "user", "content": user_query}
+                ]
+            )
+            answer_content = response.choices[0].message.content
+            return func.HttpResponse(json.dumps({"answer": answer_content}), mimetype="application/json")
+            
+        except Exception as inner_e:
+            return func.HttpResponse(json.dumps({"answer": f"API内部エラー: {str(inner_e)}"}), mimetype="application/json")
