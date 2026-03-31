@@ -30,7 +30,14 @@ def ask(req: func.HttpRequest) -> func.HttpResponse:
         vector_str = str(q_vector)
 
         # 3. Azure SQLでのベクトル検索 (RAG)
-        conn = pyodbc.connect(SQL_CONN_STR)
+        # ドライバー 18 と 17 両方を試す安全な接続方法
+        try:
+            conn = pyodbc.connect(SQL_CONN_STR)
+        except:
+            # 18でダメなら17に置換してリトライ
+            alt_conn_str = SQL_CONN_STR.replace("18", "17")
+            conn = pyodbc.connect(alt_conn_str)
+            
         cursor = conn.cursor()
         
         # コサイン類似度で知識DBから上位3件を取得
