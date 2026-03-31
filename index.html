@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC-300 合格メーカー MVP</title>
+    <!-- Mermaid.jsの読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs" type="module"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f4f7f9; color: #333; }
+        h1 { color: #0078d4; text-align: center; }
+        #chat { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; height: 500px; overflow-y: auto; margin-bottom: 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .message { margin-bottom: 15px; padding: 10px; border-radius: 5px; }
+        .user-msg { background-color: #e1f5fe; border-left: 5px solid #03a9f4; }
+        .ai-msg { background-color: #f1f8e9; border-left: 5px solid #8bc34a; }
+        .input-area { display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        button { padding: 10px 25px; background-color: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #005a9e; }
+        pre.mermaid { background: white !important; border: 1px solid #eee; padding: 10px; margin-top: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎓 SC-300 合格メーカー</h1>
+    <div id="chat">
+        <div class="message ai-msg">
+            <b>AI先生:</b> たーたんさん、準備はいいですか？SC-300の疑問を何でも投げてください。図解して説明します！
+        </div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="例：条件付きアクセスのフローを図解して">
+        <button onclick="ask()">送信</button>
+    </div>
+
+    <script>
+        async function ask() {
+            const input = document.getElementById('userInput');
+            const chat = document.getElementById('chat');
+            const text = input.value;
+            if(!text) return;
+
+            // ユーザーの入力を表示
+            chat.innerHTML += `<div class="message user-msg"><b>あなた:</b> ${text}</div>`;
+            input.value = '';
+            chat.scrollTop = chat.scrollHeight;
+
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    body: JSON.stringify({ text }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!res.ok) throw new Error('APIエラーが発生しました');
+                
+                const data = await res.json();
+                
+                // AIの回答を表示（Mermaidコードをpreタグで囲む）
+                let answerHtml = data.answer.replace(/```mermaid([\s\S]*?)```/g, '<pre class="mermaid">$1</pre>');
+                // 改行をbrタグに変換（簡易的）
+                answerHtml = answerHtml.replace(/\n/g, '<br>');
+                
+                chat.innerHTML += `<div class="message ai-msg"><b>AI先生:</b> <br>${answerHtml}</div>`;
+                
+                // Mermaid図解をレンダリング
+                const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
+                await mermaid.run();
+                
+            } catch (err) {
+                chat.innerHTML += `<div class="message" style="color:red;">エラー: ${err.message}</div>`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Enterキーでも送信できるようにする
+        document.getElementById('userInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') ask();
+        });
+    </script>
+</body>
+</html>
