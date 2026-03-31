@@ -8,66 +8,47 @@ app = func.FunctionApp()
 
 @app.route(route="ask", auth_level=func.AuthLevel.ANONYMOUS)
 def ask(req: func.HttpRequest) -> func.HttpResponse:
-    status_log = []
     try:
-        # STEP 1: 環境変数の読み込みチェック
-        status_log.append("1. 環境変数読み込み開始...")
+        req_body = req.get_json()
+        user_query = req_body.get('question', '')
+        
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         api_key = os.getenv("AZURE_OPENAI_KEY")
         sql_conn_str = os.getenv("SQL_CONN_STR")
-        
-        if not all([endpoint, api_key, sql_conn_str]):
-            return func.HttpResponse(json.dumps({"answer": "【エラー】環境変数が空です。Azureの「構成」を確認してください。"}), mimetype="application/json")
-        status_log.append("OK")
 
-        # STEP 2: OpenAI 接続テスト
-        status_log.append("2. OpenAI接続開始...")
         client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
-        # 疎通確認のためだけに軽く投げる
-        client.models.list()
-        status_log.append("OK")
 
-        ## 3. DB 接続テスト（ドライバーのバージョンを柔軟に探す）
-        status_log.append("3. DB接続開始...")
-        
-        # 試行するドライバーのリスト
-        drivers = [
-            '{ODBC Driver 18 for SQL Server}',
-            '{ODBC Driver 17 for SQL Server}'
-        ]
-        
-        conn = None
-        last_error = ""
-        
-        for driver in drivers:
-            try:
-                # 接続文字列の Driver 部分を動的に差し替え
-                current_conn_str = sql_conn_str.replace('{ODBC Driver 17 for SQL Server}', driver)
-                # Driver 18 の場合は証明書チェックを無視する設定を追加（これ重要）
-                if "18" in driver:
-                    current_conn_str += ";TrustServerCertificate=yes;"
-                
-                conn = pyodbc.connect(current_conn_str)
-                status_log.append(f"OK ({driver} で成功)")
-                break
-            except Exception as e:
-                last_error = str(e)
-                continue
+        # 1. 質問をベクトル化
+        embed_res = client.embeddings.create(input=[user_query], model="text-embedding-3-small")
+        query_vector = embed_res.data[0].embedding
 
-        if not conn:
-            return func.HttpResponse(
-                json.dumps({"answer": f"【DB接続失敗】全ドライバーを試しましたが全滅しました。\n最終エラー: {last_error}"}), 
-                mimetype="application/json"
-            )
+        # 2. DB接続（ドライバー18を優先し、TrustServerCertificateを追加）
+        # 接続文字列の中のドライバーを18に書き換えて試行
+        final_conn_str = sql_conn_str.replace("17", "18")
+        if "TrustServerCertificate" not in final_conn_str:
+            final_conn_str += ";TrustServerCertificate=yes;"
+        
+        conn = pyodbc.connect(final_conn_str)
+        cursor = conn.cursor()
 
-        # すべて突破した場合
-        return func.HttpResponse(
-            json.dumps({"answer": "【全開通！】通信はすべて成功しています。次はSQLのテーブル定義を確認しましょう。"}),
-            mimetype="application/json"
+        # 3. ベクトル検索 (テーブル名 sc300_knowledge が存在することを前提)
+        search_query = f"""
+        SELECT TOP 3 content 
+        FROM sc300_knowledge 
+        ORDER BY VECTOR_DISTANCE('cosine', CAST(? AS VECTOR(1536)), embedding)
+        """
+        cursor.execute(search_query, (json.dumps(query_vector),))
+        rows = cursor.fetchall()
+        context = "\n".join([row[0] for row in rows])
+
+        # 4. 回答生成
+        system_prompt = f"あなたはSC-300講師です。以下の知識を基にMermaid図解を交えて回答して。\n【知識】:\n{context}"
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": system_prompt},{"role": "user", "content": user_query}]
         )
+
+        return func.HttpResponse(json.dumps({"answer": response.choices[0].message.content}), mimetype="application/json")
 
     except Exception as e:
-        return func.HttpResponse(
-            json.dumps({"answer": f"【想定外のエラー】\nログ: {' -> '.join(status_log)}\nエラー: {str(e)}"}),
-            mimetype="application/json"
-        )
+        return func.HttpResponse(json.dumps({"answer": f"最終エラー: {str(e)}"}), mimetype="application/json", status_code=200)
