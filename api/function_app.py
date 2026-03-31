@@ -37,17 +37,26 @@ def ask(req: func.HttpRequest) -> func.HttpResponse:
         rows = cursor.fetchall()
         context = "\n".join([row[0] for row in rows]) if rows else "該当知識なし"
 
-        # 4. 回答生成
+        # 4. 回答生成（図解強制・DB知識優先モード）
+        system_prompt = f"""
+あなたはSC-300（Microsoft Identity and Access Administrator）の専門講師です。
+提供された【教本知識】を唯一の根拠として回答してください。
+
+### 回答ルール:
+1. プロセス、手順、構成に関する質問には、必ず Mermaid形式の `graph TD` を用いて図解してください。
+2. 図解の後に、教本の重要ポイントを簡潔に箇条書きで補足してください。
+3. 【教本知識】に該当データがない場合は、自分の知識で補完せず「DBに該当データなし」と報告してください。
+
+【教本知識】:
+{context}
+"""
         client = AzureOpenAI(azure_endpoint=endpoint, api_key=api_key, api_version="2024-02-01")
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": f"あなたはSC-300講師です。知識に基づいて回答して。\n【知識】:{context}"},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query}
             ]
         )
 
         return func.HttpResponse(json.dumps({"answer": response.choices[0].message.content}), mimetype="application/json")
-
-    except Exception as e:
-        return func.HttpResponse(json.dumps({"answer": f"本気デバッグエラー: {str(e)}"}), mimetype="application/json")
