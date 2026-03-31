@@ -2,11 +2,35 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SC-300 合格マネージャー</title>
+    <!-- React本体とBabel（変換器）を読み込み -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-    <!-- Reactがここに描画されます -->
     <div id="root"></div>
+
+    <script type="text/babel">
+        // ここに以前作ったMenuやAppのコードを統合して貼り付けるか、
+        // 一旦動作確認用にシンプルなボタンだけ出します
+        function App() {
+            return (
+                <div style={{padding: '20px', textAlign: 'center', fontFamily: 'sans-serif'}}>
+                    <h1>🎓 SC-300 合格マネージャー</h1>
+                    <p>たーたんさん、現在デバッグ中！</p>
+                    <button onClick={() => alert('合格！')} style={{padding: '10px 20px', fontSize: '1rem'}}>
+                        動作テストボタン
+                    </button>
+                    <div style={{marginTop: '20px', background: '#f0f0f0', padding: '10px', borderRadius: '10px'}}>
+                        <p>ステータス: 開発モードで起動中</p>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
