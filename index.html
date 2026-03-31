@@ -3,28 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <title>SC-300 合格マネージャー</title>
-    <!-- React本体とBabel（変換器）を読み込み -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f9; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        .btn { display: block; width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; background: white; cursor: pointer; text-align: left; font-size: 1rem; }
+        .btn:hover { background: #f0f7ff; border-color: #007bff; }
+        .explanation { margin-top: 20px; padding: 15px; background: #e9ecef; border-left: 5px solid #007bff; border-radius: 4px; }
+        .next-btn { background: #007bff; color: white; border: none; font-weight: bold; text-align: center; margin-top: 10px; }
+        .stats { text-align: center; color: #666; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // ここに以前作ったMenuやAppのコードを統合して貼り付けるか、
-        // 一旦動作確認用にシンプルなボタンだけ出します
+        // 本来はDBから取得する問題データ
+        const questions = [
+            {
+                id: 1,
+                q: "条件付きアクセスで『信頼できる場所』と『特定の国ブロック』が重なった場合、どうなる？",
+                options: ["許可される", "ブロックされる", "MFAを要求される"],
+                ans: "ブロックされる",
+                ext: "SC-300の基本！『ブロック』は常に『許可』に優先します。ひっかけ問題の定番です。"
+            },
+            {
+                id: 2,
+                q: "PIMにおいて、ユーザーが特権ロールを利用するために必要な操作は？",
+                options: ["何もしなくてよい", "管理者へ電話する", "アクティブ化を申請する"],
+                ans: "アクティブ化を申請する",
+                ext: "『対象となる(Eligible)』割り当ての場合、ジャストインタイムでアクティブ化が必要です。"
+            }
+        ];
+
         function App() {
-            return (
-                <div style={{padding: '20px', textAlign: 'center', fontFamily: 'sans-serif'}}>
-                    <h1>🎓 SC-300 合格マネージャー</h1>
-                    <p>たーたんさん、現在デバッグ中！</p>
-                    <button onClick={() => alert('合格！')} style={{padding: '10px 20px', fontSize: '1rem'}}>
-                        動作テストボタン
-                    </button>
-                    <div style={{marginTop: '20px', background: '#f0f0f0', padding: '10px', borderRadius: '10px'}}>
-                        <p>ステータス: 開発モードで起動中</p>
+            const [mode, setMode] = React.useState('menu'); // 'menu' or 'quiz'
+            const [currentIdx, setCurrentIdx] = React.useState(0);
+            const [showExt, setShowExt] = React.useState(false);
+            const [selected, setSelected] = React.useState(null);
+
+            const handleAnswer = (opt) => {
+                if (showExt) return;
+                setSelected(opt);
+                setShowExt(true);
+            };
+
+            const next = () => {
+                setShowExt(false);
+                setSelected(null);
+                setCurrentIdx((prev) => (prev + 1) % questions.length);
+            };
+
+            if (mode === 'menu') {
+                return (
+                    <div className="card" style={{textAlign: 'center'}}>
+                        <h1>🎓 SC-300 合格マネージャー</h1>
+                        <p>たーたんさん、準備はいいですか？</p>
+                        <button className="btn next-btn" onClick={() => setMode('quiz')}>演習を開始する</button>
                     </div>
+                );
+            }
+
+            const q = questions[currentIdx];
+            return (
+                <div className="card">
+                    <div className="stats">問題 {currentIdx + 1} / {questions.length}</div>
+                    <h3>{q.q}</h3>
+                    {q.options.map(opt => (
+                        <button key={opt} className="btn" 
+                                style={{backgroundColor: showExt ? (opt === q.ans ? '#d4edda' : (opt === selected ? '#f8d7da' : 'white')) : 'white'}}
+                                onClick={() => handleAnswer(opt)}>
+                            {opt}
+                        </button>
+                    ))}
+
+                    {showExt && (
+                        <div className="explanation">
+                            <strong>{selected === q.ans ? '✅ 正解！' : '❌ 不正解...'}</strong>
+                            <p>{q.ext}</p>
+                            <button className="btn next-btn" onClick={next}>次の問題へ</button>
+                        </div>
+                    )}
                 </div>
             );
         }
